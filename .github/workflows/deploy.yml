@@ -1,0 +1,40 @@
+name: Deploy Flask App to EKS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1   # replace with your AWS region if different
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.30.0'   # or your desired kubectl version
+
+      - name: Update kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig --region us-east-1 --flask-cluster-cicd-pipeline
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f deployment.yaml
+          kubectl apply -f service.yaml
+
+      - name: Verify deployment
+        run: |
+          kubectl rollout status deployment/flask-cicd-app
+          kubectl get pods -o wide
