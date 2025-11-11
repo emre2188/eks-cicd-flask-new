@@ -5,7 +5,7 @@ app = Flask(__name__) #Creates an instance of the Flask class. The special varia
 
 @app.route('/') # A decorator that registers a route — in this case, the root URL (/).
 def home(): #Defines a Python function called home that runs when the / route is accessed.
-    return jsonify({"message": "Welcome to the Flask CI/CD APP"}) 
+    return jsonify({"message": "Welcome to the Flask CI/CD APP is working !"}) 
 
 @app.route('/health') #Registers another route /health
 def health(): #Defines the function tied to the /health route.
