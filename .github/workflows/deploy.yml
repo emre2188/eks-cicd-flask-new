@@ -10,37 +10,48 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout your code
+      # 1. Checkout your code
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Configure AWS credentials from GitHub secrets
+      # 2. Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1   # Replace with your AWS region if different
+          aws-region: us-east-1
 
-      # Step 3: Install kubectl
+      # 3. Login to ECR
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 4. Build and push Docker image
+      - name: Build and Push Docker image
+        env:
+          ECR_REPO: ${{ secrets.ECR_REPO }}  # e.g., 123456789012.dkr.ecr.us-east-1.amazonaws.com/flask-cicd-app
+        run: |
+          IMAGE_TAG=${GITHUB_SHA}  # use commit SHA as unique tag
+          docker build -t $ECR_REPO:$IMAGE_TAG .
+          docker push $ECR_REPO:$IMAGE_TAG
+
+      # 5. Set up kubectl
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
         with:
-          version: 'v1.30.0'   # or your desired kubectl version
+          version: 'v1.30.0'
 
-      # Step 4: Update kubeconfig to access your EKS cluster
-      - name: Update kubeconfig for EKS
+      # 6. Update kubeconfig for EKS
+      - name: Update kubeconfig
         run: |
           aws eks update-kubeconfig --region us-east-1 --name flask-cluster-cicd-pipeline
 
-      # Step 5: Deploy Kubernetes manifests
-      - name: Deploy to Kubernetes
+      # 7. Update deployment image in Kubernetes
+      - name: Deploy new Docker image to EKS
+        env:
+          ECR_REPO: ${{ secrets.ECR_REPO }}
         run: |
-          kubectl apply -f deployment.yaml
-          kubectl apply -f service.yaml
-
-      # Step 6: Verify deployment status
-      - name: Verify deployment
-        run: |
+          IMAGE_TAG=${GITHUB_SHA}
+          kubectl set image deployment/flask-cicd-app flask-container=$ECR_REPO:$IMAGE_TAG
           kubectl rollout status deployment/flask-cicd-app
           kubectl get pods -o wide
